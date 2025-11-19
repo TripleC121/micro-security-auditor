@@ -1,0 +1,159 @@
+{
+  "name": "Scenario 3: Mixed Realistic",
+  "description": "Realistic small team setup with some issues",
+  "mock_data": {
+    "SecurityGroups": [
+      {
+        "GroupId": "sg-web-tier",
+        "GroupName": "web-tier",
+        "IpPermissions": [
+          {
+            "FromPort": 443,
+            "ToPort": 443,
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+          },
+          {
+            "FromPort": 80,
+            "ToPort": 80,
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+          }
+        ]
+      },
+      {
+        "GroupId": "sg-app-tier",
+        "GroupName": "app-tier",
+        "IpPermissions": [
+          {
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "IpRanges": [{"CidrIp": "10.0.0.0/8"}]
+          }
+        ]
+      },
+      {
+        "GroupId": "sg-db-tier",
+        "GroupName": "database-tier",
+        "IpPermissions": [
+          {
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "IpRanges": [{"CidrIp": "10.0.0.0/16"}]
+          },
+          {
+            "FromPort": 3306,
+            "ToPort": 3306,
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+          }
+        ]
+      }
+    ],
+    "Buckets": [
+      {"Name": "app-logs"},
+      {"Name": "static-assets"},
+      {"Name": "backups"}
+    ],
+    "BucketDetails": {
+      "app-logs": {
+        "ACL": {
+          "Grants": []
+        },
+        "PublicAccessBlock": {
+          "PublicAccessBlockConfiguration": {
+            "BlockPublicAcls": true,
+            "BlockPublicPolicy": true,
+            "IgnorePublicAcls": true,
+            "RestrictPublicBuckets": true
+          }
+        }
+      },
+      "static-assets": {
+        "ACL": {
+          "Grants": [
+            {
+              "Grantee": {
+                "Type": "Group",
+                "URI": "http://acs.amazonaws.com/groups/global/AllUsers"
+              },
+              "Permission": "READ"
+            }
+          ]
+        },
+        "PublicAccessBlock": {
+          "PublicAccessBlockConfiguration": {
+            "BlockPublicAcls": false,
+            "BlockPublicPolicy": false,
+            "IgnorePublicAcls": false,
+            "RestrictPublicBuckets": false
+          }
+        }
+      },
+      "backups": {
+        "ACL": {
+          "Grants": []
+        },
+        "PublicAccessBlock": {
+          "PublicAccessBlockConfiguration": {
+            "BlockPublicAcls": true,
+            "BlockPublicPolicy": true,
+            "IgnorePublicAcls": true,
+            "RestrictPublicBuckets": true
+          }
+        }
+      }
+    },
+    "Policies": [
+      {
+        "PolicyName": "DeveloperPolicy",
+        "Document": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:*",
+                "ec2:Describe*",
+                "ec2:Start*",
+                "ec2:Stop*"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+      },
+      {
+        "PolicyName": "LoggingPolicy",
+        "Document": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": "arn:aws:logs:*:*:*"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "expected_findings": [
+    {
+      "check": "EC2_OPEN_PORT",
+      "resource": "sg-db-tier",
+      "port": 3306
+    },
+    {
+      "check": "S3_PUBLIC_BUCKET",
+      "resource": "static-assets"
+    },
+    {
+      "check": "S3_PUBLIC_ACCESS_NOT_BLOCKED",
+      "resource": "static-assets"
+    },
+    {
+      "check": "IAM_WILDCARD",
+      "resource": "DeveloperPolicy"
+    }
+  ]
+}

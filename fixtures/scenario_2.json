@@ -1,0 +1,132 @@
+{
+  "name": "Scenario 2: Multiple Issues",
+  "description": "Infrastructure with several security misconfigurations",
+  "mock_data": {
+    "SecurityGroups": [
+      {
+        "GroupId": "sg-database-open",
+        "GroupName": "database-servers",
+        "IpPermissions": [
+          {
+            "FromPort": 3306,
+            "ToPort": 3306,
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+          },
+          {
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+          }
+        ]
+      },
+      {
+        "GroupId": "sg-admin-open",
+        "GroupName": "admin-access",
+        "IpPermissions": [
+          {
+            "FromPort": 22,
+            "ToPort": 22,
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+          },
+          {
+            "FromPort": 3389,
+            "ToPort": 3389,
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+          }
+        ]
+      }
+    ],
+    "Buckets": [
+      {"Name": "public-uploads"},
+      {"Name": "customer-data"}
+    ],
+    "BucketDetails": {
+      "public-uploads": {
+        "ACL": {
+          "Grants": [
+            {
+              "Grantee": {
+                "Type": "Group",
+                "URI": "http://acs.amazonaws.com/groups/global/AllUsers"
+              },
+              "Permission": "WRITE"
+            }
+          ]
+        },
+        "PublicAccessBlock": {
+          "PublicAccessBlockConfiguration": {
+            "BlockPublicAcls": false,
+            "BlockPublicPolicy": false,
+            "IgnorePublicAcls": false,
+            "RestrictPublicBuckets": false
+          }
+        }
+      },
+      "customer-data": {
+        "ACL": {
+          "Grants": []
+        },
+        "PublicAccessBlock": {
+          "PublicAccessBlockConfiguration": {
+            "BlockPublicAcls": true,
+            "BlockPublicPolicy": false,
+            "IgnorePublicAcls": false,
+            "RestrictPublicBuckets": false
+          }
+        }
+      }
+    },
+    "Policies": [
+      {
+        "PolicyName": "TooPermissiveAdmin",
+        "Document": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "*",
+              "Resource": "*"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "expected_findings": [
+    {
+      "check": "EC2_OPEN_PORT",
+      "resource": "sg-database-open",
+      "port": 3306
+    },
+    {
+      "check": "EC2_OPEN_PORT",
+      "resource": "sg-database-open",
+      "port": 5432
+    },
+    {
+      "check": "EC2_OPEN_PORT",
+      "resource": "sg-admin-open",
+      "port": 22
+    },
+    {
+      "check": "EC2_OPEN_PORT",
+      "resource": "sg-admin-open",
+      "port": 3389
+    },
+    {
+      "check": "S3_PUBLIC_BUCKET",
+      "resource": "public-uploads"
+    },
+    {
+      "check": "S3_PUBLIC_ACCESS_NOT_BLOCKED",
+      "resource": "public-uploads"
+    },
+    {
+      "check": "S3_PUBLIC_ACCESS_NOT_BLOCKED",
+      "resource": "customer-data"
+    },
+    {
+      "check": "IAM_WILDCARD",
+      "resource": "TooPermissiveAdmin"
+    }
+  ]
+}

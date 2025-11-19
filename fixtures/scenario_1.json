@@ -1,0 +1,74 @@
+{
+  "name": "Scenario 1: Mostly Secure",
+  "description": "Infrastructure with good security practices and one SSH issue",
+  "mock_data": {
+    "SecurityGroups": [
+      {
+        "GroupId": "sg-secure-web",
+        "GroupName": "web-servers",
+        "IpPermissions": [
+          {
+            "FromPort": 443,
+            "ToPort": 443,
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+          },
+          {
+            "FromPort": 80,
+            "ToPort": 80,
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+          }
+        ]
+      },
+      {
+        "GroupId": "sg-bastion-open",
+        "GroupName": "bastion-host",
+        "IpPermissions": [
+          {
+            "FromPort": 22,
+            "ToPort": 22,
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+          }
+        ]
+      }
+    ],
+    "Buckets": [
+      {"Name": "my-private-data"}
+    ],
+    "BucketDetails": {
+      "my-private-data": {
+        "ACL": {
+          "Grants": []
+        },
+        "PublicAccessBlock": {
+          "PublicAccessBlockConfiguration": {
+            "BlockPublicAcls": true,
+            "BlockPublicPolicy": true,
+            "IgnorePublicAcls": true,
+            "RestrictPublicBuckets": true
+          }
+        }
+      }
+    },
+    "Policies": [
+      {
+        "PolicyName": "ReadOnlyPolicy",
+        "Document": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": ["s3:GetObject", "s3:ListBucket"],
+              "Resource": ["arn:aws:s3:::my-bucket", "arn:aws:s3:::my-bucket/*"]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "expected_findings": [
+    {
+      "check": "EC2_OPEN_PORT",
+      "resource": "sg-bastion-open",
+      "severity": "CRITICAL"
+    }
+  ]
+}
