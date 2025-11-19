@@ -1,4 +1,5 @@
-"""Security auditor agent with CLI interface."""
+"""Security auditor agent with CLI interface.
+VERsion 1.2"""
 
 import argparse
 import json
