@@ -1,0 +1,36 @@
+# Environment & Secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs (but commit sample_logs.json in docs/)
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+spike/
+scratch/
+temp/
+
+# Keep fixtures committed
+!fixtures/*.json
+!docs/sample_*.json
