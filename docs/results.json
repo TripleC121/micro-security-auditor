@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-11-22 00:38:36",
+  "scenarios": [
+    {
+      "scenario": "Scenario 1: Mostly Secure",
+      "description": "Infrastructure with good security practices and one SSH issue",
+      "latency_ms": 0,
+      "tp": 1,
+      "fn": 0,
+      "fp": 0,
+      "precision": 100.0,
+      "recall": 100.0
+    },
+    {
+      "scenario": "Scenario 2: Multiple Issues",
+      "description": "Infrastructure with several security misconfigurations",
+      "latency_ms": 0,
+      "tp": 8,
+      "fn": 0,
+      "fp": 0,
+      "precision": 100.0,
+      "recall": 100.0
+    },
+    {
+      "scenario": "Scenario 3: Mixed Realistic",
+      "description": "Realistic small team setup with some issues",
+      "latency_ms": 0,
+      "tp": 4,
+      "fn": 0,
+      "fp": 0,
+      "precision": 100.0,
+      "recall": 100.0
+    }
+  ]
+}
