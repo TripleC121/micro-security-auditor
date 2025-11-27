@@ -1,0 +1,8 @@
+{"timestamp": "2025-11-27T18:45:03.061957+00:00", "level": "INFO", "message": "Starting security audit", "module": "agent", "run_id": "run-20251127-124503", "mode": "mock", "use_llm": true}
+{"timestamp": "2025-11-27T18:45:03.062387+00:00", "level": "INFO", "message": "Starting EC2 security check", "module": "tools", "run_id": "run-20251127-124503", "component": "ec2_check"}
+{"timestamp": "2025-11-27T18:45:03.062449+00:00", "level": "INFO", "message": "EC2 check complete", "module": "tools", "run_id": "run-20251127-124503", "component": "ec2_check", "resources_scanned": 3, "findings_count": 1, "duration_seconds": 0.0}
+{"timestamp": "2025-11-27T18:45:03.062466+00:00", "level": "INFO", "message": "Starting S3 public access check", "module": "tools", "run_id": "run-20251127-124503", "component": "s3_check"}
+{"timestamp": "2025-11-27T18:45:03.062489+00:00", "level": "INFO", "message": "S3 check complete", "module": "tools", "run_id": "run-20251127-124503", "component": "s3_check", "resources_scanned": 3, "findings_count": 2, "duration_seconds": 0.0}
+{"timestamp": "2025-11-27T18:45:03.062500+00:00", "level": "INFO", "message": "Starting IAM wildcard check", "module": "tools", "run_id": "run-20251127-124503", "component": "iam_check"}
+{"timestamp": "2025-11-27T18:45:03.062519+00:00", "level": "INFO", "message": "IAM check complete", "module": "tools", "run_id": "run-20251127-124503", "component": "iam_check", "resources_scanned": 2, "findings_count": 1, "duration_seconds": 0.0}
+{"timestamp": "2025-11-27T18:45:03.062550+00:00", "level": "INFO", "message": "Security audit complete", "module": "agent", "run_id": "run-20251127-124503", "duration_seconds": 0.001, "mode": "mock", "total_findings": 4, "security_score": 55}

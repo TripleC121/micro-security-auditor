@@ -1,0 +1,34 @@
+{"timestamp": "2025-11-27T18:41:08.873784+00:00", "level": "INFO", "message": "Starting security audit", "module": "agent", "run_id": "run-20251127-124108", "mode": "mock", "use_llm": true}
+{"timestamp": "2025-11-27T18:41:08.874915+00:00", "level": "INFO", "message": "Starting EC2 security check", "module": "tools", "run_id": "run-20251127-124108", "component": "ec2_check"}
+{"timestamp": "2025-11-27T18:41:08.874977+00:00", "level": "INFO", "message": "EC2 check complete", "module": "tools", "run_id": "run-20251127-124108", "component": "ec2_check", "resources_scanned": 2, "findings_count": 1, "duration_seconds": 0.0}
+{"timestamp": "2025-11-27T18:41:08.874995+00:00", "level": "INFO", "message": "Starting S3 public access check", "module": "tools", "run_id": "run-20251127-124108", "component": "s3_check"}
+{"timestamp": "2025-11-27T18:41:08.875011+00:00", "level": "INFO", "message": "S3 check complete", "module": "tools", "run_id": "run-20251127-124108", "component": "s3_check", "resources_scanned": 1, "findings_count": 0, "duration_seconds": 0.0}
+{"timestamp": "2025-11-27T18:41:08.875023+00:00", "level": "INFO", "message": "Starting IAM wildcard check", "module": "tools", "run_id": "run-20251127-124108", "component": "iam_check"}
+{"timestamp": "2025-11-27T18:41:08.875036+00:00", "level": "INFO", "message": "IAM check complete", "module": "tools", "run_id": "run-20251127-124108", "component": "iam_check", "resources_scanned": 1, "findings_count": 0, "duration_seconds": 0.0}
+{"timestamp": "2025-11-27T18:41:08.875058+00:00", "level": "INFO", "message": "Security audit complete", "module": "agent", "run_id": "run-20251127-124108", "duration_seconds": 0.001, "mode": "mock", "total_findings": 1, "security_score": 80}
+{
+  "run_id": "run-20251127-124108",
+  "security_score": 80,
+  "score_breakdown": {
+    "EC2": {
+      "points": -20,
+      "count": 1,
+      "severity": "CRITICAL"
+    }
+  },
+  "findings": [
+    {
+      "check": "EC2_OPEN_PORT",
+      "resource": "sg-bastion-open",
+      "severity": "CRITICAL",
+      "description": "SSH port 22 open to internet (IPv4)",
+      "details": {
+        "port": 22,
+        "service": "SSH",
+        "cidr": "0.0.0.0/0",
+        "sg_name": "bastion-host"
+      }
+    }
+  ],
+  "duration_seconds": 0.001
+}

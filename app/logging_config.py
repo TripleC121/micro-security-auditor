@@ -10,6 +10,7 @@ class JSONFormatter(logging.Formatter):
     
     def format(self, record):
         """Format log record as JSON with consistent structure."""
+        # Start with core fields
         log_data = {
             'timestamp': datetime.now(timezone.utc).isoformat(),
             'level': record.levelname,
@@ -17,28 +18,26 @@ class JSONFormatter(logging.Formatter):
             'module': record.module,
         }
         
-        # Add extra fields if present (run_id, metrics, etc.)
-        if hasattr(record, 'run_id'):
-            log_data['run_id'] = record.run_id
-        if hasattr(record, 'component'):
-            log_data['component'] = record.component
-        if hasattr(record, 'resources_scanned'):
-            log_data['resources_scanned'] = record.resources_scanned
-        if hasattr(record, 'findings_count'):
-            log_data['findings_count'] = record.findings_count
-        if hasattr(record, 'duration_seconds'):
-            log_data['duration_seconds'] = record.duration_seconds
-            
-        # Add any other extra fields
-        for key, value in record.__dict__.items():
-            if key not in ['name', 'msg', 'args', 'created', 'filename', 
-                          'funcName', 'levelname', 'levelno', 'lineno', 
-                          'module', 'msecs', 'message', 'pathname', 'process',
-                          'processName', 'relativeCreated', 'stack_info',
-                          'thread', 'threadName', 'exc_info', 'exc_text',
-                          'run_id', 'component', 'resources_scanned',
-                          'findings_count', 'duration_seconds']:
-                log_data[key] = value
+        # Add known extra fields only (whitelist approach)
+        # This explicitly controls what goes into the output
+        extra_fields = {
+            'run_id': None,
+            'component': None,
+            'resources_scanned': None,
+            'findings_count': None,
+            'duration_seconds': None,
+            'mode': None,
+            'use_llm': None,
+            'total_findings': None,
+            'security_score': None
+        }
+        
+        for key in extra_fields:
+            if hasattr(record, key):
+                value = getattr(record, key)
+                # Only add if not None
+                if value is not None:
+                    log_data[key] = value
         
         return json.dumps(log_data)
 

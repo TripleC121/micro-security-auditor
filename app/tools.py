@@ -63,18 +63,35 @@ def check_ec2_open_ports(mock_data: Optional[Dict] = None, run_id: Optional[str]
                 # Check if any dangerous ports are in range
                 for dangerous_port, service in DANGEROUS_PORTS.items():
                     if from_port <= dangerous_port <= to_port:
-                        # Check for open to internet
+                        # Check for IPv4 open to internet (0.0.0.0/0)
                         for ip_range in rule.get('IpRanges', []):
                             if ip_range.get('CidrIp') == '0.0.0.0/0':
                                 finding = {
                                     'check': 'EC2_OPEN_PORT',
                                     'resource': sg_id,
                                     'severity': 'CRITICAL' if dangerous_port in [22, 3389] else 'HIGH',
-                                    'description': f"{service} port {dangerous_port} open to internet",
+                                    'description': f"{service} port {dangerous_port} open to internet (IPv4)",
                                     'details': {
                                         'port': dangerous_port,
                                         'service': service,
                                         'cidr': '0.0.0.0/0',
+                                        'sg_name': sg.get('GroupName', 'unknown')
+                                    }
+                                }
+                                findings.append(sanitize_finding(finding))
+                        
+                        # Check for IPv6 open to internet (::/0)
+                        for ipv6_range in rule.get('Ipv6Ranges', []):
+                            if ipv6_range.get('CidrIpv6') == '::/0':
+                                finding = {
+                                    'check': 'EC2_OPEN_PORT',
+                                    'resource': sg_id,
+                                    'severity': 'CRITICAL' if dangerous_port in [22, 3389] else 'HIGH',
+                                    'description': f"{service} port {dangerous_port} open to internet (IPv6)",
+                                    'details': {
+                                        'port': dangerous_port,
+                                        'service': service,
+                                        'cidr': '::/0',
                                         'sg_name': sg.get('GroupName', 'unknown')
                                     }
                                 }

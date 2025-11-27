@@ -1,5 +1,5 @@
 """Security auditor agent with CLI interface.
-VERsion 1.2"""
+Version 1.3 - Added solo-dev focus and security scoring"""
 
 import argparse
 import json
@@ -8,7 +8,7 @@ import os
 import sys
 import time
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from app.logging_config import setup_logging
 from app.tools import (
@@ -113,11 +113,156 @@ def load_mock_data() -> Dict:
     return mock_data
 
 
-def generate_summary(findings: List[Dict], use_llm: bool = True) -> str:
-    """Generate a summary of findings.
+def calculate_security_score(findings: List[Dict]) -> Tuple[int, Dict[str, Dict]]:
+    """Calculate security score (0-100) based on findings.
+    
+    Args:
+        findings: List of finding dictionaries with 'severity' and 'check' fields
+        
+    Returns:
+        Tuple of (score, breakdown) where breakdown is:
+        {
+            'EC2': {'points': -10, 'count': 1, 'severity': 'HIGH'},
+            'S3': {'points': -5, 'count': 1, 'severity': 'MEDIUM'},
+            'IAM': {'points': -20, 'count': 1, 'severity': 'CRITICAL'}
+        }
+    """
+    # Point deductions per severity
+    SEVERITY_POINTS = {
+        'CRITICAL': -20,
+        'HIGH': -10,
+        'MEDIUM': -5,
+        'LOW': -1
+    }
+    
+    # Group findings by category
+    categories = {
+        'EC2': [],
+        'S3': [],
+        'IAM': []
+    }
+    
+    for finding in findings:
+        check = finding.get('check', '')
+        if check.startswith('EC2_'):
+            categories['EC2'].append(finding)
+        elif check.startswith('S3_'):
+            categories['S3'].append(finding)
+        elif check.startswith('IAM_'):
+            categories['IAM'].append(finding)
+    
+    # Calculate deductions per category
+    breakdown = {}
+    total_deduction = 0
+    
+    for category, cat_findings in categories.items():
+        if not cat_findings:
+            continue
+        
+        # Calculate points for this category
+        category_points = sum(
+            SEVERITY_POINTS.get(f.get('severity', 'LOW'), -1) 
+            for f in cat_findings
+        )
+        total_deduction += category_points
+        
+        # Find highest severity in this category
+        severity_order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+        highest_severity = 'LOW'
+        for sev in severity_order:
+            if any(f.get('severity') == sev for f in cat_findings):
+                highest_severity = sev
+                break
+        
+        breakdown[category] = {
+            'points': category_points,
+            'count': len(cat_findings),
+            'severity': highest_severity
+        }
+    
+    # Calculate final score (0-100)
+    score = max(0, min(100, 100 + total_deduction))
+    
+    return score, breakdown
+
+
+def format_security_score(score: int, breakdown: Dict[str, Dict], 
+                         json_mode: bool = False) -> str:
+    """Format security score for display.
+    
+    Args:
+        score: Security score (0-100)
+        breakdown: Category breakdown from calculate_security_score
+        json_mode: If True, omit emoji and use plain text
+        
+    Returns:
+        Formatted string for display
+    """
+    if json_mode:
+        # Plain text for JSON mode
+        lines = [f"Security Score: {score}/100"]
+        if breakdown:
+            lines.append("\nBreakdown:")
+            for category, data in sorted(breakdown.items()):
+                count = data['count']
+                severity = data['severity']
+                points = data['points']
+                plural = "finding" if count == 1 else "findings"
+                lines.append(
+                    f"  {category}: {points} pts "
+                    f"({count} {severity} {plural})"
+                )
+        return "\n".join(lines)
+    else:
+        # Formatted output with emoji
+        lines = [f"🏆 Security Score: {score}/100"]
+        
+        if breakdown:
+            lines.append("\nBreakdown:")
+            for category, data in sorted(breakdown.items()):
+                count = data['count']
+                severity = data['severity']
+                points = data['points']
+                plural = "finding" if count == 1 else "findings"
+                lines.append(
+                    f"  {category}: {points} pts "
+                    f"({count} {severity} {plural})"
+                )
+        
+        # Encouragement message based on score
+        lines.append("")
+        if score >= 90:
+            lines.append(
+                "🎉 Excellent! Your security posture is stronger than "
+                "most solo setups!"
+            )
+        elif score >= 75:
+            lines.append(
+                "👍 You're doing better than most solo setups! "
+                "Address the issues above to get even stronger."
+            )
+        elif score >= 60:
+            lines.append(
+                "⚠️  You have some important security gaps. "
+                "Focus on CRITICAL and HIGH findings first."
+            )
+        else:
+            lines.append(
+                "🚨 Your infrastructure has significant security risks. "
+                "Start with the CRITICAL findings immediately."
+            )
+        
+        return "\n".join(lines)
+
+
+def generate_summary(findings: List[Dict], score: int, breakdown: Dict[str, Dict],
+                    use_llm: bool = True) -> str:
+    """Generate a summary of findings with solo-dev focus.
 
     Args:
         findings: List of finding dictionaries
+        score: Security score (0-100)
+        breakdown: Category breakdown
         use_llm: Whether to use Gemini for summarization
 
     Returns:
@@ -134,13 +279,22 @@ def generate_summary(findings: List[Dict], use_llm: bool = True) -> str:
             genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
             model = genai.GenerativeModel("gemini-pro")
 
-            prompt = (
-                "Summarize these AWS security findings in a clear, "
-                "actionable format:\n\n"
-                f"{json.dumps(findings, indent=2)}\n\n"
-                "Provide a brief executive summary followed by "
-                "top priorities for remediation."
-            )
+            prompt = f"""You are advising a solo developer or small team (1-5 people) 
+who manages their own AWS infrastructure without a dedicated security team.
+
+Security Score: {score}/100
+
+Findings breakdown:
+{json.dumps(findings, indent=2)}
+
+Provide:
+1. A 2-sentence executive summary
+2. The ONE thing they should fix first and why
+3. For each finding: a specific remediation step they can do in under 10 minutes
+4. What they can safely ignore for now (if anything)
+
+Be direct and practical. No enterprise jargon. Use "you" not "the organization".
+Focus on actions they can take right now from the AWS console or CLI."""
 
             response = model.generate_content(prompt)
             return response.text
@@ -148,7 +302,7 @@ def generate_summary(findings: List[Dict], use_llm: bool = True) -> str:
         except Exception as e:
             logger.warning(f"Gemini summarization failed, using fallback: {e}")
 
-    # Fallback to simple Python summary
+    # Fallback to simple Python summary with solo-dev focus
     summary_lines = [f"⚠️  Found {len(findings)} security issue(s):\n"]
 
     # Group by severity
@@ -157,7 +311,7 @@ def generate_summary(findings: List[Dict], use_llm: bool = True) -> str:
         severity = finding.get("severity", "MEDIUM")
         by_severity[severity].append(finding)
 
-    # Report by severity
+    # Report by severity with actionable advice
     for severity in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
         if by_severity[severity]:
             count = len(by_severity[severity])
@@ -171,13 +325,44 @@ def generate_summary(findings: List[Dict], use_llm: bool = True) -> str:
                 remaining = count - 3
                 summary_lines.append(f"  ... and {remaining} more")
 
-    summary_lines.append("\n🔧 Recommended Actions:")
+    # Solo-dev focused action plan
+    summary_lines.append("\n🔧 Your Action Plan:")
+    
     if by_severity["CRITICAL"]:
-        summary_lines.append("  1. IMMEDIATELY address CRITICAL issues")
+        summary_lines.append(
+            "  1. FIX FIRST: Address CRITICAL issues NOW "
+            "(these are actively dangerous)"
+        )
+        first_critical = by_severity["CRITICAL"][0]
+        if "SSH" in first_critical["description"] or "RDP" in first_critical["description"]:
+            summary_lines.append(
+                "     → Restrict SSH/RDP to your IP in AWS Console: "
+                "EC2 > Security Groups"
+            )
+        elif "IAM" in first_critical["check"]:
+            summary_lines.append(
+                "     → Replace wildcard IAM policies with specific permissions"
+            )
+    
     if by_severity["HIGH"]:
-        summary_lines.append("  2. Fix HIGH severity issues within 24 hours")
+        summary_lines.append(
+            "  2. Fix HIGH severity issues within 24 hours"
+        )
+        if any("database" in f["description"].lower() for f in by_severity["HIGH"]):
+            summary_lines.append(
+                "     → Lock down database ports to app tier only"
+            )
+    
     if by_severity["MEDIUM"]:
-        summary_lines.append("  3. Plan remediation for MEDIUM issues")
+        summary_lines.append(
+            "  3. Plan remediation for MEDIUM issues this week"
+        )
+    
+    if by_severity["LOW"]:
+        summary_lines.append(
+            f"  4. LOW issues ({len(by_severity['LOW'])}) can wait - "
+            "focus on the above first"
+        )
 
     return "\n".join(summary_lines)
 
@@ -225,8 +410,12 @@ def run_audit(mock: bool = False, no_llm: bool = False) -> Dict:
         logger.error(f"Audit failed: {e}", extra={"run_id": run_id})
         return {"success": False, "error": str(e), "run_id": run_id}
 
+    # Calculate security score
+    score, breakdown = calculate_security_score(all_findings)
+
     # Generate summary
-    summary = generate_summary(all_findings, use_llm=not no_llm)
+    summary = generate_summary(all_findings, score, breakdown, 
+                              use_llm=not no_llm)
 
     # Log run summary
     duration = time.perf_counter() - start_time
@@ -236,6 +425,7 @@ def run_audit(mock: bool = False, no_llm: bool = False) -> Dict:
             "run_id": run_id,
             "mode": "mock" if mock else "real",
             "total_findings": len(all_findings),
+            "security_score": score,
             "duration_seconds": round(duration, 3),
         },
     )
@@ -245,6 +435,8 @@ def run_audit(mock: bool = False, no_llm: bool = False) -> Dict:
         "run_id": run_id,
         "findings": all_findings,
         "summary": summary,
+        "security_score": score,
+        "score_breakdown": breakdown,
         "duration_seconds": round(duration, 3),
     }
 
@@ -295,6 +487,8 @@ def main():
             json.dumps(
                 {
                     "run_id": result["run_id"],
+                    "security_score": result["security_score"],
+                    "score_breakdown": result["score_breakdown"],
                     "findings": result["findings"],
                     "duration_seconds": result["duration_seconds"],
                 },
@@ -304,8 +498,20 @@ def main():
     else:
         print(f"\n{'=' * 60}")
         print(f"Security Audit Report - {result['run_id']}")
-        print(f"{'=' * 60}")
+        print(f"{'=' * 60}\n")
+        
+        # Display security score
+        score_display = format_security_score(
+            result["security_score"],
+            result["score_breakdown"],
+            json_mode=False
+        )
+        print(score_display)
+        print(f"\n{'=' * 60}\n")
+        
+        # Display summary
         print(result["summary"])
+        
         duration = result["duration_seconds"]
         print(f"\n⏱️  Scan completed in {duration:.2f} seconds")
         print(f"📊 Total findings: {len(result['findings'])}")
